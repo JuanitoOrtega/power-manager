@@ -2,11 +2,25 @@ import shutil
 import platform
 import subprocess
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox
+
+# Nombre único de la tarea programada (compartido al crear y eliminar)
+TAREA_NOMBRE = 'Reinicio_Diario_Medianoche'
+
+# Metadatos de la aplicación
+VERSION = '1.0.0'
+COMPATIBLE_CON = 'Compatible con Windows 7 / 8 / 10'
 
 
 def es_windows():
     return platform.system().lower() == 'windows'
+
+
+def nombre_sistema():
+    """Devuelve el nombre legible del sistema operativo detectado."""
+    sistema = platform.system()
+    version = platform.release()
+    return f"{sistema} {version}".strip()
 
 
 def run_command(cmd_args):
@@ -16,121 +30,161 @@ def run_command(cmd_args):
         raise
 
 
-def aplicar_configuracion():
-    sistema = combo_sistemas.get()
-
-    if not sistema:
-        messagebox.showwarning(
-            "Selección vacía",
-            "Por favor selecciona un sistema operativo antes de continuar."
-        )
-        return
-
+def _validar_binario(binario):
+    """Comprueba que estamos en Windows y que el binario exista en el PATH."""
     if not es_windows():
-        messagebox.showerror("SO no soportado", "Esta aplicación solo puede ejecutar cambios en Windows.")
-        return
+        messagebox.showerror("SO no soportado", "Esta acción solo está disponible en Windows.")
+        return False
+    if not shutil.which(binario):
+        messagebox.showerror(f'Falta {binario}', f'No se encontró el comando `{binario}` en el sistema.')
+        return False
+    return True
 
-    # Verificar que los binarios necesarios existan
-    if not shutil.which('powercfg'):
-        messagebox.showerror('Falta powercfg', 'No se encontró el comando `powercfg` en el sistema.')
-        return
-    if not shutil.which('schtasks'):
-        messagebox.showerror('Falta schtasks', 'No se encontró el comando `schtasks` en el sistema.')
-        return
 
+# --- Fila 1: control de suspensión / energía -------------------------------
+
+def mantener_despierta():
+    """Fija todos los timeouts en 0: la PC nunca se suspende ni apaga pantalla."""
+    if not _validar_binario('powercfg'):
+        return
     try:
-        # 1. Configurar energía: Nunca suspender ni hibernar (con corriente y batería)
         run_command(['powercfg', '/change', 'standby-timeout-ac', '0'])
         run_command(['powercfg', '/change', 'standby-timeout-dc', '0'])
         run_command(['powercfg', '/change', 'hibernate-timeout-ac', '0'])
         run_command(['powercfg', '/change', 'hibernate-timeout-dc', '0'])
-
-        # 2. Configurar pantalla: Nunca apagarse
         run_command(['powercfg', '/change', 'monitor-timeout-ac', '0'])
         run_command(['powercfg', '/change', 'monitor-timeout-dc', '0'])
-
-        # 3. Confirmación antes de crear la tarea programada
-        crear = messagebox.askyesno(
-            'Confirmar Reinicio Programado',
-            '¿Deseas programar un reinicio automático diario a las 00:00?'
+        messagebox.showinfo(
+            'PC en modo activo',
+            'La PC se mantendrá despierta:\n\n'
+            '- No entrará en suspensión ni hibernación.\n'
+            '- La pantalla no se apagará.'
         )
-        
-
-        if crear:
-            # Crear la tarea programada para reiniciar a la medianoche (00:00)
-            tarea_nombre = 'Reinicio_Diario_Medianoche'
-            # /tr acepta el comando como una sola cadena
-            run_command([
-                'schtasks', '/create', '/tn', tarea_nombre,
-                '/tr', 'shutdown /r /f /t 0', '/sc', 'daily', '/st', '00:00', '/ru', 'SYSTEM', '/f'
-            ])
-            messagebox.showinfo(
-                'Configuración Exitosa',
-                f'¡Operación completada para {sistema}!\n\n'
-                '- El sistema nunca entrará en suspensión.\n'
-                '- Se programó un reinicio automático diario a las 00:00.'
-            )
-            
-        else:
-            messagebox.showinfo('Configuración Parcial', 'Se aplicaron cambios de energía sin programar reinicio.')
-
     except subprocess.CalledProcessError:
         messagebox.showerror(
             'Error al aplicar cambios',
-            'No se pudieron aplicar completamente los cambios. Asegúrate de ejecutar como Administrador.'
+            'No se pudieron aplicar los cambios. Ejecuta la aplicación como Administrador.'
         )
-        
 
 
-def desactivar_reinicio():
-    if not es_windows():
-        messagebox.showerror("SO no soportado", "Esta función solo está disponible en Windows.")
+def permitir_suspension():
+    """Restaura tiempos de suspensión estándar (en minutos)."""
+    if not _validar_binario('powercfg'):
         return
+    try:
+        run_command(['powercfg', '/change', 'monitor-timeout-ac', '10'])
+        run_command(['powercfg', '/change', 'monitor-timeout-dc', '5'])
+        run_command(['powercfg', '/change', 'standby-timeout-ac', '30'])
+        run_command(['powercfg', '/change', 'standby-timeout-dc', '15'])
+        run_command(['powercfg', '/change', 'hibernate-timeout-ac', '180'])
+        run_command(['powercfg', '/change', 'hibernate-timeout-dc', '60'])
+        messagebox.showinfo(
+            'Suspensión restaurada',
+            'Se restauraron tiempos de suspensión estándar:\n\n'
+            '- Pantalla: 10 min (corriente) / 5 min (batería)\n'
+            '- Suspender: 30 min (corriente) / 15 min (batería)\n'
+            '- Hibernar: 180 min (corriente) / 60 min (batería)'
+        )
+    except subprocess.CalledProcessError:
+        messagebox.showerror(
+            'Error al restaurar',
+            'No se pudieron restaurar los valores. Ejecuta la aplicación como Administrador.'
+        )
 
-    confirmar = messagebox.askyesno('Confirmar eliminación', '¿Deseas eliminar la tarea programada de reinicio?')
+
+# --- Fila 2: control del reinicio automático diario ------------------------
+
+def programar_reinicio():
+    """Crea una tarea programada que reinicia el equipo a diario a las 00:00."""
+    if not _validar_binario('schtasks'):
+        return
+    crear = messagebox.askyesno(
+        'Confirmar reinicio programado',
+        '¿Deseas programar un reinicio automático diario a las 00:00?\n\n'
+        'El reinicio usa "shutdown /r /f": cierra las aplicaciones sin guardar.'
+    )
+    if not crear:
+        return
+    try:
+        # /tr acepta el comando como una sola cadena
+        run_command([
+            'schtasks', '/create', '/tn', TAREA_NOMBRE,
+            '/tr', 'shutdown /r /f /t 0', '/sc', 'daily', '/st', '00:00', '/ru', 'SYSTEM', '/f'
+        ])
+        messagebox.showinfo(
+            'Reinicio programado',
+            'Se programó un reinicio automático diario a las 00:00.'
+        )
+    except subprocess.CalledProcessError:
+        messagebox.showerror(
+            'Error al programar',
+            'No se pudo crear la tarea programada. Ejecuta la aplicación como Administrador.'
+        )
+
+
+def cancelar_reinicio():
+    """Elimina la tarea programada de reinicio diario."""
+    if not _validar_binario('schtasks'):
+        return
+    confirmar = messagebox.askyesno('Confirmar cancelación', '¿Deseas eliminar la tarea de reinicio automático?')
     if not confirmar:
         return
-
     try:
-        tarea_nombre = 'Reinicio_Diario_Medianoche'
-        run_command(['schtasks', '/delete', '/tn', tarea_nombre, '/f'])
-        messagebox.showinfo('Tarea Eliminada', 'La tarea programada ha sido eliminada correctamente.')
+        run_command(['schtasks', '/delete', '/tn', TAREA_NOMBRE, '/f'])
+        messagebox.showinfo('Reinicio cancelado', 'La tarea de reinicio automático fue eliminada correctamente.')
     except subprocess.CalledProcessError:
-        messagebox.showerror('Error', 'No se pudo eliminar la tarea programada. Comprueba permisos.')
-        
+        messagebox.showerror('Error al cancelar', 'No se pudo eliminar la tarea programada. Comprueba permisos.')
 
 
 # --- Configuración de la Interfaz Gráfica (Tkinter) ---
 ventana = tk.Tk()
-ventana.title('Configurador de Sistema Activo')
-ventana.geometry('460x260')
+ventana.title('Power Manager')
+ventana.geometry('480x320')
 ventana.resizable(False, False)
 
 # Etiqueta de instrucción
-lbl_instruccion = tk.Label(ventana, text='Seleccione su Sistema Operativo:', font=('Arial', 11, 'bold'))
-lbl_instruccion.pack(pady=16)
+lbl_instruccion = tk.Label(ventana, text='Sistema operativo detectado:', font=('Arial', 11, 'bold'))
+lbl_instruccion.pack(pady=(16, 4))
 
-# Selector (Combobox)
-sistemas_disponibles = ['Windows 7', 'Windows 8', 'Windows 10']
-combo_sistemas = ttk.Combobox(ventana, values=sistemas_disponibles, state='readonly', font=('Arial', 10))
-combo_sistemas.pack(pady=5, ipady=3)
-combo_sistemas.current(0)  # Selecciona Windows 7 por defecto
+# Nombre del SO detectado automáticamente
+lbl_sistema = tk.Label(ventana, text=nombre_sistema(), font=('Arial', 12), fg='#1b7ced')
+lbl_sistema.pack(pady=(0, 4))
 
-# Botones de acción
+# Botones de acción (grid 2x2)
+# Columna izquierda = aplicar el comportamiento "mantener activo".
+# Columna derecha  = revertir cada acción.
 frame_botones = tk.Frame(ventana)
 frame_botones.pack(pady=20)
 
-btn_aplicar = tk.Button(frame_botones, text='Aplicar Configuración', command=aplicar_configuracion, bg='#1b7ced', fg='white', font=('Arial', 10, 'bold'), relief='flat')
-btn_aplicar.grid(row=0, column=0, padx=8, ipadx=10, ipady=5)
+btn_mantener = tk.Button(frame_botones, text='Mantener PC despierta', command=mantener_despierta, bg='#28a745', fg='white', font=('Arial', 10, 'bold'), relief='flat', width=22)
+btn_mantener.grid(row=0, column=0, padx=8, pady=6, ipady=5)
 
-btn_desactivar = tk.Button(frame_botones, text='Desactivar Reinicio', command=desactivar_reinicio, bg='#d9534f', fg='white', font=('Arial', 10, 'bold'), relief='flat')
-btn_desactivar.grid(row=0, column=1, padx=8, ipadx=10, ipady=5)
+btn_permitir = tk.Button(frame_botones, text='Permitir suspensión', command=permitir_suspension, bg='#6c757d', fg='white', font=('Arial', 10, 'bold'), relief='flat', width=22)
+btn_permitir.grid(row=0, column=1, padx=8, pady=6, ipady=5)
+
+btn_programar = tk.Button(frame_botones, text='Programar reinicio diario', command=programar_reinicio, bg='#1b7ced', fg='white', font=('Arial', 10, 'bold'), relief='flat', width=22)
+btn_programar.grid(row=1, column=0, padx=8, pady=6, ipady=5)
+
+btn_cancelar = tk.Button(frame_botones, text='Cancelar reinicio diario', command=cancelar_reinicio, bg='#d9534f', fg='white', font=('Arial', 10, 'bold'), relief='flat', width=22)
+btn_cancelar.grid(row=1, column=1, padx=8, pady=6, ipady=5)
+
+botones = [btn_mantener, btn_permitir, btn_programar, btn_cancelar]
 
 # Si no es Windows, deshabilitar botones y avisar
 if not es_windows():
-    btn_aplicar.config(state='disabled')
-    btn_desactivar.config(state='disabled')
+    for boton in botones:
+        boton.config(state='disabled')
     lbl_no_so = tk.Label(ventana, text=f"SO detectado: {platform.system()} — solo Windows soportado.", fg='red')
     lbl_no_so.pack(pady=6)
+
+# Footer: compatibilidad (izquierda) y versión (derecha)
+frame_footer = tk.Frame(ventana)
+frame_footer.pack(side='bottom', fill='x', padx=10, pady=6)
+
+lbl_compatibilidad = tk.Label(frame_footer, text=COMPATIBLE_CON, font=('Arial', 8), fg='gray')
+lbl_compatibilidad.pack(side='left')
+
+lbl_version = tk.Label(frame_footer, text=f'v{VERSION}', font=('Arial', 8), fg='gray')
+lbl_version.pack(side='right')
 
 ventana.mainloop()
