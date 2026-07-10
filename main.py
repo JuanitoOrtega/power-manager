@@ -20,7 +20,7 @@ def resource_path(rel):
 TAREA_NOMBRE = 'Reinicio_Diario_Medianoche'
 
 # Metadatos de la aplicación
-VERSION = '1.3.1'
+VERSION = '1.3.2'
 COMPATIBLE_CON = 'Compatible con Windows 7 / 8 / 10'
 
 
@@ -176,7 +176,7 @@ def cancelar_reinicio():
 # --- Configuración de la Interfaz Gráfica (Tkinter) ---
 ventana = tk.Tk()
 ventana.title('Power Manager')
-ventana.geometry('480x320')
+ventana.geometry('480x360')
 ventana.resizable(False, False)
 
 # Icono de la ventana (barra de título y barra de tareas).
@@ -186,9 +186,21 @@ try:
 except Exception:
     pass
 
+# Descripción breve de la aplicación
+lbl_descripcion = tk.Label(
+    ventana,
+    text='Mantén tu PC siempre activa: evita la suspensión y la hibernación, '
+         'y programa reinicios automáticos diarios.',
+    font=('Arial', 9),
+    fg='gray25',
+    wraplength=440,
+    justify='center'
+)
+lbl_descripcion.pack(pady=(14, 8))
+
 # Etiqueta de instrucción
 lbl_instruccion = tk.Label(ventana, text='Sistema operativo detectado:', font=('Arial', 11, 'bold'))
-lbl_instruccion.pack(pady=(16, 4))
+lbl_instruccion.pack(pady=(4, 4))
 
 # Nombre del SO detectado automáticamente
 lbl_sistema = tk.Label(ventana, text=nombre_sistema(), font=('Arial', 12), fg='#1b7ced')
