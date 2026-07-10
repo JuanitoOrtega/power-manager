@@ -1,0 +1,10 @@
+# Dependencias del proyecto
+# ---------------------------------------------------------------------------
+# La aplicación en sí NO tiene dependencias de terceros: usa solo la librería
+# estándar de Python (tkinter, subprocess, platform, shutil).
+#
+# Lo único que se instala es la herramienta para empaquetar el .exe.
+# Instalar con:  pip install -r requirements.txt
+# ---------------------------------------------------------------------------
+
+pyinstaller>=6.0
