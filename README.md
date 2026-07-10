@@ -161,6 +161,24 @@ Notas importantes:
 - Construye el ejecutable en Windows; PyInstaller no construye ejecutables de Windows desde macOS/Linux de forma fiable.
 - Si la aplicación utiliza recursos externos, puede que necesites opciones adicionales de PyInstaller (`--add-data`, archivos `.spec`).
 
+## Releases automáticas (GitHub Actions)
+
+El repositorio incluye un workflow (`.github/workflows/release.yml`) que compila el `.exe` en un runner de Windows y lo publica como **Release de GitHub** automáticamente. No necesitas compilar ni subir nada a mano.
+
+Para publicar una nueva versión:
+
+1. Actualiza la constante `VERSION` en `main.py` (ej. `1.3.0`).
+2. Crea y sube un tag de versión con el mismo número, prefijado con `v`:
+
+```bash
+git tag v1.3.0
+git push origin v1.3.0
+```
+
+3. GitHub Actions se encarga del resto: compila `PowerManager.exe` y lo adjunta a una Release con notas generadas automáticamente. El ejecutable queda disponible en la pestaña **Releases** del repositorio.
+
+> El workflow también puede lanzarse manualmente desde la pestaña **Actions → Release → Run workflow**.
+
 ### Crear un instalador (opcional)
 
 Puedes usar Inno Setup para crear un instalador `.exe` profesional:

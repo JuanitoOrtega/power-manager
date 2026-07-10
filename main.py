@@ -69,6 +69,15 @@ def mantener_despierta():
     """Fija todos los timeouts en 0: la PC nunca se suspende ni apaga pantalla."""
     if not _validar_binario('powercfg'):
         return
+    confirmar = messagebox.askyesno(
+        'Confirmar modo activo',
+        '¿Deseas mantener la PC siempre despierta?\n\n'
+        '- No entrará en suspensión ni hibernación.\n'
+        '- La pantalla no se apagará.\n\n'
+        'En portátiles esto aumenta el consumo de batería.'
+    )
+    if not confirmar:
+        return
     try:
         run_command(['powercfg', '/change', 'standby-timeout-ac', '0'])
         run_command(['powercfg', '/change', 'standby-timeout-dc', '0'])

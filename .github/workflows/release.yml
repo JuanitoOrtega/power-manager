@@ -1,0 +1,36 @@
+name: Release
+
+# Se dispara al publicar un tag de versión (ej. v1.3.0),
+# o manualmente desde la pestaña Actions de GitHub.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write   # necesario para crear la Release y subir el .exe
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Compilar ejecutable (.exe)
+        run: pyinstaller --onefile --windowed --name PowerManager --icon icon.ico --add-data "icon.ico;." main.py
+
+      - name: Publicar Release con el .exe
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/PowerManager.exe
+          generate_release_notes: true
