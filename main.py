@@ -20,7 +20,7 @@ def resource_path(rel):
 TAREA_NOMBRE = 'Reinicio_Diario_Medianoche'
 
 # Metadatos de la aplicación
-VERSION = '1.3.0'
+VERSION = '1.3.1'
 COMPATIBLE_CON = 'Compatible con Windows 7 / 8 / 10'
 
 

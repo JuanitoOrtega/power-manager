@@ -29,8 +29,12 @@ jobs:
       - name: Compilar ejecutable (.exe)
         run: pyinstaller --onefile --windowed --name PowerManager --icon icon.ico --add-data "icon.ico;." main.py
 
+      - name: Renombrar con la versión
+        shell: pwsh
+        run: Rename-Item dist/PowerManager.exe "PowerManager-${{ github.ref_name }}.exe"
+
       - name: Publicar Release con el .exe
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/PowerManager.exe
+          files: dist/PowerManager-${{ github.ref_name }}.exe
           generate_release_notes: true
