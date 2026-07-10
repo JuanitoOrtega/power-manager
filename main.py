@@ -20,7 +20,7 @@ def resource_path(rel):
 TAREA_NOMBRE = 'Reinicio_Diario_Medianoche'
 
 # Metadatos de la aplicación
-VERSION = '1.3.2'
+VERSION = '1.3.3'
 COMPATIBLE_CON = 'Compatible con Windows 7 / 8 / 10'
 
 
@@ -35,11 +35,13 @@ def nombre_sistema():
     return f"{sistema} {version}".strip()
 
 
+# Evita que powercfg/schtasks abran ventanas de consola emergentes en Windows.
+# En otros sistemas el valor 0 no tiene efecto (comportamiento por defecto).
+CREATE_NO_WINDOW = 0x08000000 if es_windows() else 0
+
+
 def run_command(cmd_args):
-    try:
-        subprocess.run(cmd_args, check=True)
-    except subprocess.CalledProcessError:
-        raise
+    subprocess.run(cmd_args, check=True, creationflags=CREATE_NO_WINDOW)
 
 
 def _validar_binario(binario):
@@ -58,7 +60,8 @@ def tarea_existe(nombre):
     resultado = subprocess.run(
         ['schtasks', '/query', '/tn', nombre],
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
+        stderr=subprocess.DEVNULL,
+        creationflags=CREATE_NO_WINDOW
     )
     return resultado.returncode == 0
 
