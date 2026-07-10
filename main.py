@@ -20,7 +20,7 @@ def resource_path(rel):
 TAREA_NOMBRE = 'Reinicio_Diario_Medianoche'
 
 # Metadatos de la aplicación
-VERSION = '1.0.0'
+VERSION = '1.3.0'
 COMPATIBLE_CON = 'Compatible con Windows 7 / 8 / 10'
 
 
@@ -51,6 +51,16 @@ def _validar_binario(binario):
         messagebox.showerror(f'Falta {binario}', f'No se encontró el comando `{binario}` en el sistema.')
         return False
     return True
+
+
+def tarea_existe(nombre):
+    """Devuelve True si existe una tarea programada con ese nombre."""
+    resultado = subprocess.run(
+        ['schtasks', '/query', '/tn', nombre],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+    return resultado.returncode == 0
 
 
 # --- Fila 1: control de suspensión / energía -------------------------------
@@ -137,6 +147,12 @@ def programar_reinicio():
 def cancelar_reinicio():
     """Elimina la tarea programada de reinicio diario."""
     if not _validar_binario('schtasks'):
+        return
+    if not tarea_existe(TAREA_NOMBRE):
+        messagebox.showinfo(
+            'Sin tareas programadas',
+            'No se han encontrado tareas programadas de reinicio para eliminar.'
+        )
         return
     confirmar = messagebox.askyesno('Confirmar cancelación', '¿Deseas eliminar la tarea de reinicio automático?')
     if not confirmar:
