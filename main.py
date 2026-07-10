@@ -1,8 +1,20 @@
+import os
+import sys
 import shutil
 import platform
 import subprocess
 import tkinter as tk
 from tkinter import messagebox
+
+
+def resource_path(rel):
+    """Ruta a un recurso, tanto en desarrollo como dentro del .exe de PyInstaller.
+
+    PyInstaller (--onefile) extrae los archivos empaquetados a una carpeta
+    temporal accesible vía sys._MEIPASS; en desarrollo se usa la carpeta actual.
+    """
+    base = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
+    return os.path.join(base, rel)
 
 # Nombre único de la tarea programada (compartido al crear y eliminar)
 TAREA_NOMBRE = 'Reinicio_Diario_Medianoche'
@@ -141,6 +153,13 @@ ventana = tk.Tk()
 ventana.title('Power Manager')
 ventana.geometry('480x320')
 ventana.resizable(False, False)
+
+# Icono de la ventana (barra de título y barra de tareas).
+# En Windows usa el .ico; si falla (p. ej. en macOS/Linux) se ignora.
+try:
+    ventana.iconbitmap(resource_path('icon.ico'))
+except Exception:
+    pass
 
 # Etiqueta de instrucción
 lbl_instruccion = tk.Label(ventana, text='Sistema operativo detectado:', font=('Arial', 11, 'bold'))

@@ -68,7 +68,8 @@ if exist "%APP_NAME%.spec" del /q "%APP_NAME%.spec"
 REM -- 4. Compilar con PyInstaller ------------------------------------------
 echo [4/4] Compilando con PyInstaller ...
 if exist "%ICON%" (
-    "%PY%" -m PyInstaller --onefile --windowed --name "%APP_NAME%" --icon "%ICON%" "%ENTRY%"
+    REM --icon: icono del .exe   |   --add-data: incluye el .ico para el icono de la ventana
+    "%PY%" -m PyInstaller --onefile --windowed --name "%APP_NAME%" --icon "%ICON%" --add-data "%ICON%;." "%ENTRY%"
 ) else (
     echo       ^(No se encontro %ICON%; se compila sin icono personalizado^)
     "%PY%" -m PyInstaller --onefile --windowed --name "%APP_NAME%" "%ENTRY%"
